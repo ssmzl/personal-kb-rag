@@ -1,10 +1,10 @@
 # Tasks
 
-- [ ] Task 1: 工程骨架搭建：单仓结构，后端 FastAPI，前端 Vite + React + TS + Tailwind
-  - [ ] SubTask 1.1: 初始化后端（代码直接放仓库根目录）：`requirements.txt`（fastapi、uvicorn、sqlalchemy[asyncio]、asyncpg、pgvector、pypdf、python-docx、httpx、PyJWT、bcrypt、python-multipart、pytest、pytest-asyncio），`app/main.py` 入口、配置模块（全部敏感项走环境变量）、目录分层（app/routers、app/services、app/models、app/schemas）
-  - [ ] SubTask 1.2: 落地全局规范件：统一返回 `{code, message, data}` 包装、业务异常 `BizException` + 全局异常处理器、统一响应模型
-  - [ ] SubTask 1.3: 初始化 `frontend/`（Vite + React18 + TS + Tailwind + react-router），封装 axios 实例（baseURL、token 拦截、401 跳登录）、Tailwind 主题色板统一配置（组件内不硬编码色值）
-  - [ ] SubTask 1.4: 验证：`uvicorn app.main:app` 可启动且 /api/health 返回统一结构；前端 `npm run build` 通过
+- [x] Task 1: 工程骨架搭建：单仓结构，后端 FastAPI，前端 Vite + React + TS + Tailwind
+  - [x] SubTask 1.1: 初始化后端（代码直接放仓库根目录）：`requirements.txt`（fastapi、uvicorn、sqlalchemy[asyncio]、asyncpg、pgvector、pypdf、python-docx、httpx、PyJWT、bcrypt、python-multipart、pytest、pytest-asyncio），`app/main.py` 入口、配置模块（全部敏感项走环境变量）、目录分层（app/routers、app/services、app/models、app/schemas）
+  - [x] SubTask 1.2: 落地全局规范件：统一返回 `{code, message, data}` 包装、业务异常 `BizException` + 全局异常处理器、统一响应模型
+  - [x] SubTask 1.3: 初始化 `frontend/`（Vite + React18 + TS + Tailwind + react-router），封装 axios 实例（baseURL、token 拦截、401 跳登录）、Tailwind 主题色板统一配置（组件内不硬编码色值）
+  - [x] SubTask 1.4: 验证：`uvicorn app.main:app` 可启动且 /api/health 返回统一结构；前端 `npm run build` 通过
 
 - [ ] Task 2: 数据库基础：docker-compose postgres(pgvector) + schema + 异步 ORM
   - [ ] SubTask 2.1: 根目录 `docker-compose.yml`（先含 pgvector/pgvector:pg16），`.env.example` 模板
