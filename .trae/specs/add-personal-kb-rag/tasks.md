@@ -6,11 +6,11 @@
   - [x] SubTask 1.3: 初始化 `frontend/`（Vite + React18 + TS + Tailwind + react-router），封装 axios 实例（baseURL、token 拦截、401 跳登录）、Tailwind 主题色板统一配置（组件内不硬编码色值）
   - [x] SubTask 1.4: 验证：`uvicorn app.main:app` 可启动且 /api/health 返回统一结构；前端 `npm run build` 通过
 
-- [ ] Task 2: 数据库基础：docker-compose postgres(pgvector) + schema + 异步 ORM
-  - [ ] SubTask 2.1: 根目录 `docker-compose.yml`（先含 pgvector/pgvector:pg16），`.env.example` 模板
-  - [ ] SubTask 2.2: `scripts/schema.sql`：`CREATE EXTENSION vector`；users / knowledge_bases / documents / document_chunks（含 `embedding vector(1024)`）/ chat_sessions / chat_messages（主键 BIGSERIAL，统一 create_time/update_time），为 document_chunks(embedding) 建 ivfflat 索引
-  - [ ] SubTask 2.3: SQLAlchemy async engine + 六张表 ORM 模型（embedding 列用 pgvector sqlalchemy 类型），启动时自动执行 schema
-  - [ ] SubTask 2.4: 验证：compose 起 postgres 后，后端启动建表成功；pytest 连真实库插入/检索一条向量通过
+- [x] Task 2: 数据库基础：docker-compose postgres(pgvector) + schema + 异步 ORM
+  - [x] SubTask 2.1: 根目录 `docker-compose.yml`（先含 pgvector/pgvector:pg16），`.env.example` 模板
+  - [x] SubTask 2.2: `scripts/schema.sql`：`CREATE EXTENSION vector`；users / knowledge_bases / documents / document_chunks（含 `embedding vector(1024)`）/ chat_sessions / chat_messages（主键 BIGSERIAL，统一 create_time/update_time），为 document_chunks(embedding) 建 ivfflat 索引
+  - [x] SubTask 2.3: SQLAlchemy async engine + 六张表 ORM 模型（embedding 列用 pgvector sqlalchemy 类型），启动时自动执行 schema
+  - [x] SubTask 2.4: 验证：compose 起 postgres 后，后端启动建表成功；pytest 连真实库插入/检索一条向量通过
 
 - [ ] Task 3: 登录鉴权（后端 + 前端登录页）
   - [ ] SubTask 3.1: 登录接口（bcrypt 校验、签发 JWT）、FastAPI 依赖注入式鉴权（除 /api/auth/login 外全校验，失败 401）；初始账号密码由环境变量注入并在首次启动写入

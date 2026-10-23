@@ -1,7 +1,7 @@
 # Checklist
 
 - [ ] 后端 `uvicorn app.main:app` 可启动且 /api/health 返回统一 `{code, message, data}` 结构；前端 `npm run build` 通过
-- [ ] docker-compose 可启动 postgres(pgvector)，后端启动后扩展与六张表自动就绪，embedding 列为 vector(1024)
+- [x] docker-compose 可启动 postgres(pgvector)，后端启动后扩展与六张表自动就绪，embedding 列为 vector(1024)
 - [ ] 错误账号密码登录返回统一错误体；正确登录签发 JWT；无 token 访问受保护接口返回 401 且前端跳登录页
 - [ ] 密码 bcrypt 存储，初始账号由环境变量注入，代码与仓库中无任何硬编码密钥
 - [ ] 知识库创建/重命名/删除/列表接口可用，列表含文档数；删除知识库后文档、分块与向量记录均已级联清除
