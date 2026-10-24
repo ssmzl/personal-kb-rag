@@ -10,7 +10,7 @@ import pytest
 from sqlalchemy import delete, select
 
 from app.config import settings
-from app.database import Base, async_session_factory, init_database
+from app.database import Base, async_session_factory, engine, init_database
 from app.models import Document, DocumentChunk, KnowledgeBase, User
 from app.models.document import DOCUMENT_STATUS_COMPLETED
 
@@ -95,3 +95,7 @@ async def test_init_database_and_vector_search() -> None:
             await session.execute(delete(KnowledgeBase).where(KnowledgeBase.id == kb.id))
             await session.execute(delete(User).where(User.id == user.id))
             await session.commit()
+
+    # 每个 async 测试运行在独立事件循环，释放连接池避免跨循环复用残留连接
+    if engine is not None:
+        await engine.dispose()

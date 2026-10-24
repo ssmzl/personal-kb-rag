@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends
 
 from app.dependencies import get_current_user
-from app.routers import auth, health
+from app.routers import auth, health, knowledge_base
 
 api_router = APIRouter()
 
@@ -13,5 +13,6 @@ api_router.include_router(auth.router)
 
 # 受保护路由：除登录/健康检查外的业务接口统一挂载到本路由，强制 JWT 鉴权
 protected_router = APIRouter(dependencies=[Depends(get_current_user)])
+protected_router.include_router(knowledge_base.router)
 
 api_router.include_router(protected_router)
