@@ -12,6 +12,7 @@ from app.config import settings
 from app.database import close_database, init_database
 from app.exceptions import register_exception_handlers
 from app.routers import api_router
+from app.services.auth_service import ensure_initial_admin
 
 logging.basicConfig(
     level=logging.DEBUG if settings.debug else logging.INFO,
@@ -25,6 +26,8 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """应用生命周期：启动时执行建库脚本，关闭时释放连接池。"""
     await init_database()
+    # 首次启动按环境变量写入初始管理员（已存在则跳过）
+    await ensure_initial_admin()
     yield
     await close_database()
 

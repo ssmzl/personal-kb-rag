@@ -1,17 +1,34 @@
 import { useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
+
+import { login } from '@/api/auth'
+import { ApiError } from '@/api/client'
 
 export default function LoginPage() {
+  const navigate = useNavigate()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [hint, setHint] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!username.trim() || !password) {
+    const trimmedUsername = username.trim()
+    if (!trimmedUsername || !password) {
       setHint('请输入账号和密码')
       return
     }
-    setHint('登录接口将在后续任务接入')
+
+    setSubmitting(true)
+    setHint('')
+    try {
+      await login(trimmedUsername, password)
+      navigate('/kb', { replace: true })
+    } catch (error) {
+      setHint(error instanceof ApiError ? error.message : '登录失败，请稍后重试')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -49,9 +66,10 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-hover"
+            disabled={submitting}
+            className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
           >
-            登录
+            {submitting ? '登录中…' : '登录'}
           </button>
         </form>
       </div>

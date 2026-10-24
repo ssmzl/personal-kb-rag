@@ -12,10 +12,10 @@
   - [x] SubTask 2.3: SQLAlchemy async engine + 六张表 ORM 模型（embedding 列用 pgvector sqlalchemy 类型），启动时自动执行 schema
   - [x] SubTask 2.4: 验证：compose 起 postgres 后，后端启动建表成功；pytest 连真实库插入/检索一条向量通过
 
-- [ ] Task 3: 登录鉴权（后端 + 前端登录页）
-  - [ ] SubTask 3.1: 登录接口（bcrypt 校验、签发 JWT）、FastAPI 依赖注入式鉴权（除 /api/auth/login 外全校验，失败 401）；初始账号密码由环境变量注入并在首次启动写入
-  - [ ] SubTask 3.2: 前端登录页 + 路由守卫 + axios 携带 token，401 自动回登录页
-  - [ ] SubTask 3.3: 验证：错误密码返回统一错误体；正确登录拿到 token 并访问受保护接口成功；pytest 覆盖登录成功/失败两路径
+- [x] Task 3: 登录鉴权（后端 + 前端登录页）
+  - [x] SubTask 3.1: 登录接口（bcrypt 校验、签发 JWT）、FastAPI 依赖注入式鉴权（除 /api/auth/login 外全校验，失败 401）；初始账号密码由环境变量注入并在首次启动写入
+  - [x] SubTask 3.2: 前端登录页 + 路由守卫 + axios 携带 token，401 自动回登录页
+  - [x] SubTask 3.3: 验证：错误密码返回统一错误体；正确登录拿到 token 并访问受保护接口成功；pytest 覆盖登录成功/失败两路径
 
 - [ ] Task 4: 知识库管理（后端 CRUD + 前端管理页）
   - [ ] SubTask 4.1: 知识库 router/service：创建、重命名、删除（事务内级联删文档与分块向量）、列表（含文档数聚合）
