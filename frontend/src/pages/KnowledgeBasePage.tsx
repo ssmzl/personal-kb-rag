@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 
 import {
   createKnowledgeBase,
@@ -185,6 +186,12 @@ export default function KnowledgeBasePage() {
                 </p>
               </div>
               <div className="flex gap-2">
+                <Link
+                  to={`/kb/${kb.id}/documents`}
+                  className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-primary-hover"
+                >
+                  文档
+                </Link>
                 <button
                   type="button"
                   onClick={() => openRenameModal(kb)}

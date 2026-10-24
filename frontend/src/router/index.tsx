@@ -4,6 +4,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { TOKEN_STORAGE_KEY } from '@/api/client'
 import AppLayout from '@/components/layout/AppLayout'
 import ChatPage from '@/pages/ChatPage'
+import DocumentPage from '@/pages/DocumentPage'
 import KnowledgeBasePage from '@/pages/KnowledgeBasePage'
 import LoginPage from '@/pages/LoginPage'
 import NotFoundPage from '@/pages/NotFoundPage'
@@ -43,6 +44,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <Navigate to="/kb" replace /> },
       { path: 'kb', element: <KnowledgeBasePage /> },
+      { path: 'kb/:kbId/documents', element: <DocumentPage /> },
       { path: 'chat', element: <ChatPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],

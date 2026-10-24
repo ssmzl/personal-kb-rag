@@ -22,12 +22,12 @@
   - [x] SubTask 4.2: 前端知识库列表/新建/重命名/删除确认页（Tailwind 样式），操作后主动刷新列表
   - [x] SubTask 4.3: 验证：pytest 覆盖创建与级联删除；前端联调走通
 
-- [ ] Task 5: 文档上传与向量化管线
-  - [ ] SubTask 5.1: 上传接口（类型/大小校验：pdf/docx/md/txt ≤ 20MB），文件存本地 uploads 目录，文档记录入库（状态：处理中）
-  - [ ] SubTask 5.2: 解析器：pypdf（pdf）、python-docx（docx）、纯文本（md/txt），统一输出纯文本
-  - [ ] SubTask 5.3: 分块器（段落优先 + 500 字窗口 + 50 字重叠）+ DashScope Embedding 客户端（OpenAI 兼容，text-embedding-v3，httpx 异步）+ 批量写入 pgvector；用 FastAPI BackgroundTasks/异步任务执行，完成/失败回写状态与原因，失败不留脏分块
-  - [ ] SubTask 5.4: 前端文档列表页：上传（进度/状态轮询）、分块查看抽屉、删除文档（级联删分块）
-  - [ ] SubTask 5.5: 验证：分块器 pytest（空文本、短文本、窗口与重叠正确性）；上传真实 PDF 后分块入库且向量检索可查回
+- [x] Task 5: 文档上传与向量化管线
+  - [x] SubTask 5.1: 上传接口（类型/大小校验：pdf/docx/md/txt ≤ 20MB），文件存本地 uploads 目录，文档记录入库（状态：处理中）
+  - [x] SubTask 5.2: 解析器：pypdf（pdf）、python-docx（docx）、纯文本（md/txt），统一输出纯文本
+  - [x] SubTask 5.3: 分块器（段落优先 + 500 字窗口 + 50 字重叠）+ DashScope Embedding 客户端（OpenAI 兼容，text-embedding-v3，httpx 异步）+ 批量写入 pgvector；用 FastAPI BackgroundTasks/异步任务执行，完成/失败回写状态与原因，失败不留脏分块
+  - [x] SubTask 5.4: 前端文档列表页：上传（进度/状态轮询）、分块查看抽屉、删除文档（级联删分块）
+  - [x] SubTask 5.5: 验证：分块器 pytest（空文本、短文本、窗口与重叠正确性）；上传真实 PDF 后分块入库且向量检索可查回
 
 - [ ] Task 6: RAG 流式问答（后端 SSE + 前端对话页）
   - [ ] SubTask 6.1: 会话管理接口：新建/重命名/删除会话、消息历史加载（时间字段统一输出 `yyyy-MM-dd HH:mm:ss` 格式字符串）
