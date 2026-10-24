@@ -13,3 +13,67 @@ body {
 #root {
   @apply min-h-screen;
 }
+
+/* 对话页 Markdown 渲染样式（Tailwind preflight 会清除默认排版） */
+.markdown-body > * + * {
+  @apply mt-2;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4 {
+  @apply font-semibold;
+}
+
+.markdown-body h1 {
+  @apply text-base;
+}
+
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4 {
+  @apply text-sm;
+}
+
+.markdown-body ul {
+  @apply list-disc pl-5;
+}
+
+.markdown-body ol {
+  @apply list-decimal pl-5;
+}
+
+.markdown-body li + li {
+  @apply mt-1;
+}
+
+.markdown-body a {
+  @apply text-primary underline;
+}
+
+.markdown-body blockquote {
+  @apply border-l-2 border-border pl-3 text-text-muted;
+}
+
+.markdown-body code {
+  @apply rounded bg-surface px-1 py-0.5 text-xs;
+}
+
+.markdown-body pre {
+  @apply overflow-x-auto rounded-md bg-surface p-3;
+}
+
+.markdown-body pre code {
+  @apply bg-transparent p-0;
+}
+
+.markdown-body table {
+  @apply w-full border-collapse text-xs;
+}
+
+.markdown-body th,
+.markdown-body td {
+  @apply border border-border px-2 py-1 text-left;
+}
+

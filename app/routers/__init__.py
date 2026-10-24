@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends
 
 from app.dependencies import get_current_user
-from app.routers import auth, documents, health, knowledge_base
+from app.routers import auth, chat, documents, health, knowledge_base
 
 api_router = APIRouter()
 
@@ -15,5 +15,6 @@ api_router.include_router(auth.router)
 protected_router = APIRouter(dependencies=[Depends(get_current_user)])
 protected_router.include_router(knowledge_base.router)
 protected_router.include_router(documents.router)
+protected_router.include_router(chat.router)
 
 api_router.include_router(protected_router)

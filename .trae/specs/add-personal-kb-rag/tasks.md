@@ -29,11 +29,11 @@
   - [x] SubTask 5.4: 前端文档列表页：上传（进度/状态轮询）、分块查看抽屉、删除文档（级联删分块）
   - [x] SubTask 5.5: 验证：分块器 pytest（空文本、短文本、窗口与重叠正确性）；上传真实 PDF 后分块入库且向量检索可查回
 
-- [ ] Task 6: RAG 流式问答（后端 SSE + 前端对话页）
-  - [ ] SubTask 6.1: 会话管理接口：新建/重命名/删除会话、消息历史加载（时间字段统一输出 `yyyy-MM-dd HH:mm:ss` 格式字符串）
-  - [ ] SubTask 6.2: 问答接口：问题 embedding → pgvector 余弦 TopK 检索（按 kb_id 过滤）→ 拼接 system prompt（强制「仅依据资料回答，未命中则明说未找到」）+ 近 6 轮历史 → DashScope 流式调用 → SSE 输出（httpx 流式 + StreamingResponse）；异常先发 `error` 事件再结束流；流结束后发 `sources` 事件（文档名+片段）并持久化问答消息
-  - [ ] SubTask 6.3: 前端对话页：会话侧栏 + 消息流（react-markdown 渲染）+ 输入框；POST 流式用 fetch ReadableStream 解析 SSE，增量更新走 React state 不可变更新；回答完成后展示可展开引用来源
-  - [ ] SubTask 6.4: 验证：检索拼接 pytest；端到端提问上传过的资料，流式输出正常且引用正确
+- [x] Task 6: RAG 流式问答（后端 SSE + 前端对话页）
+  - [x] SubTask 6.1: 会话管理接口：新建/重命名/删除会话、消息历史加载（时间字段统一输出 `yyyy-MM-dd HH:mm:ss` 格式字符串）
+  - [x] SubTask 6.2: 问答接口：问题 embedding → pgvector 余弦 TopK 检索（按 kb_id 过滤）→ 拼接 system prompt（强制「仅依据资料回答，未命中则明说未找到」）+ 近 6 轮历史 → DashScope 流式调用 → SSE 输出（httpx 流式 + StreamingResponse）；异常先发 `error` 事件再结束流；流结束后发 `sources` 事件（文档名+片段）并持久化问答消息
+  - [x] SubTask 6.3: 前端对话页：会话侧栏 + 消息流（react-markdown 渲染）+ 输入框；POST 流式用 fetch ReadableStream 解析 SSE，增量更新走 React state 不可变更新；回答完成后展示可展开引用来源
+  - [x] SubTask 6.4: 验证：检索拼接 pytest；端到端提问上传过的资料，流式输出正常且引用正确
 
 - [ ] Task 7: 一键部署与交付文档
   - [ ] SubTask 7.1: 根目录 `Dockerfile`（后端，python:3.11-slim）、`frontend/Dockerfile`（node 构建 + nginx 托管 + /api 反代）

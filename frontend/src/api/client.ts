@@ -4,6 +4,9 @@ import type { ApiResponse } from '@/types/api'
 
 export const TOKEN_STORAGE_KEY = 'kb_token'
 
+/** 后端接口基地址；流式接口（fetch）与 axios 实例共用 */
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
+
 /** 统一的接口错误：code 为 0 以外的业务码或 HTTP 状态码 */
 export class ApiError extends Error {
   readonly code: number
@@ -16,7 +19,7 @@ export class ApiError extends Error {
 }
 
 const http = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? '/api',
+  baseURL: API_BASE_URL,
   timeout: 30000,
 })
 
