@@ -7,6 +7,13 @@
 import os
 from dataclasses import dataclass, field
 
+from dotenv import load_dotenv
+
+# 本地开发时自动加载仓库根目录 .env（向调用文件所在目录逐级向上查找）；
+# Docker 容器内不拷贝 .env，配置由 compose 注入，此处为空操作。
+# override=False：已存在的进程环境变量优先，避免被 .env 覆盖。
+load_dotenv()
+
 
 def _env_bool(name: str, default: bool) -> bool:
     """读取布尔型环境变量，无法识别时退回默认值。"""
