@@ -1,8 +1,8 @@
 """文档上传与向量化管线测试。
 
 - 解析器：TXT/DOCX 正常解析、损坏 PDF 报错；
-- 接口：类型/大小校验、异步完成状态流转、分块入库与向量检索、删除级联、越权隔离、
-  未配置 API Key 时失败并回写原因且不留脏分块。
+- 接口：类型/大小校验、上传不自动分块、手动触发后状态流转、分块入库与向量检索、
+  重新分块替换旧分块、删除级联、越权隔离、未配置 API Key 时失败并回写原因且不留脏分块。
 
 真实库接口测试需要配置 ``DATABASE_URL``（与 test_auth.py 一致），未配置时自动跳过。
 """
@@ -169,6 +169,20 @@ async def _upload(
     )
 
 
+async def _chunk(
+    client: AsyncClient,
+    document_id: int,
+    headers: dict,
+    chunk_strategy: str = "paragraph",
+):
+    """手动触发文档分块并返回响应对象。"""
+    return await client.post(
+        f"/api/documents/{document_id}/chunk",
+        json={"chunk_strategy": chunk_strategy},
+        headers=headers,
+    )
+
+
 def _build_pdf(text: str) -> bytes:
     """构造带文本内容的单页最小 PDF（Helvetica），用于真实 PDF 解析验证。"""
     content = f"BT /F1 18 Tf 72 720 Td ({text}) Tj ET"
@@ -208,7 +222,7 @@ async def test_upload_markdown_completes_and_vector_search_works(
     upload_settings,
     fake_embeddings,
 ) -> None:
-    """上传 MD 后状态由处理中转完成，分块入库且可按余弦距离检索回最近分块。"""
+    """上传 MD 后保持待分块，手动触发后完成入库且可按余弦距离检索回最近分块。"""
     headers = test_user["headers"]
     kb_id = await _create_kb(client, headers, "上传测试库")
     content = "# 标题\n\n第一段知识内容。\n\n第二段知识内容。".encode("utf-8")
@@ -217,18 +231,32 @@ async def test_upload_markdown_completes_and_vector_search_works(
     assert response.status_code == 200
     body = response.json()
     assert body["code"] == 0
-    assert body["data"]["status"] == "processing"
+    assert body["data"]["status"] == "pending"
     assert body["data"]["filename"] == "笔记.md"
     document_id = body["data"]["id"]
 
-    # 后台任务随响应执行完毕：列表中状态为已完成，分块数可见
+    # 上传不自动分块：列表中仍为待分块，且没有分块数据
+    list_response = await client.get(f"/api/knowledge-bases/{kb_id}/documents", headers=headers)
+    items = {item["id"]: item for item in list_response.json()["data"]}
+    item = items[document_id]
+    assert item["status"] == "pending"
+    assert item["chunk_count"] == 0
+    assert item["error_message"] is None
+    assert len(item["create_time"]) == 19 and item["create_time"][10] == " "
+    chunks_response = await client.get(f"/api/documents/{document_id}/chunks", headers=headers)
+    assert chunks_response.json()["data"] == []
+
+    # 手动按 markdown 策略触发分块，后台任务随响应执行完毕
+    chunk_response = await _chunk(client, document_id, headers, "markdown")
+    assert chunk_response.status_code == 200
+    assert chunk_response.json()["data"]["status"] == "processing"
+
     list_response = await client.get(f"/api/knowledge-bases/{kb_id}/documents", headers=headers)
     items = {item["id"]: item for item in list_response.json()["data"]}
     item = items[document_id]
     assert item["status"] == "completed"
     assert item["chunk_count"] >= 1
     assert item["error_message"] is None
-    assert len(item["create_time"]) == 19 and item["create_time"][10] == " "
 
     # 分块文本可查看，序号从 0 递增
     chunks_response = await client.get(f"/api/documents/{document_id}/chunks", headers=headers)
@@ -272,7 +300,11 @@ async def test_upload_real_pdf_parsed_and_chunked(
         _build_pdf("Hello Knowledge Base PDF"),
     )
     assert response.status_code == 200
+    assert response.json()["data"]["status"] == "pending"
     document_id = response.json()["data"]["id"]
+
+    chunk_response = await _chunk(client, document_id, headers)
+    assert chunk_response.status_code == 200
 
     chunks_response = await client.get(f"/api/documents/{document_id}/chunks", headers=headers)
     chunks = chunks_response.json()["data"]
@@ -350,6 +382,9 @@ async def test_corrupt_pdf_marks_failed_without_dirty_chunks(
     assert response.status_code == 200
     document_id = response.json()["data"]["id"]
 
+    chunk_response = await _chunk(client, document_id, headers)
+    assert chunk_response.status_code == 200
+
     list_response = await client.get(f"/api/knowledge-bases/{kb_id}/documents", headers=headers)
     item = {item["id"]: item for item in list_response.json()["data"]}[document_id]
     assert item["status"] == "failed"
@@ -387,6 +422,9 @@ async def test_missing_api_key_marks_failed_without_dirty_chunks(
     response = await _upload(client, kb_id, headers, "note.txt", "一些文本内容".encode("utf-8"))
     document_id = response.json()["data"]["id"]
 
+    chunk_response = await _chunk(client, document_id, headers)
+    assert chunk_response.status_code == 200
+
     list_response = await client.get(f"/api/knowledge-bases/{kb_id}/documents", headers=headers)
     item = {item["id"]: item for item in list_response.json()["data"]}[document_id]
     assert item["status"] == "failed"
@@ -406,6 +444,69 @@ async def test_missing_api_key_marks_failed_without_dirty_chunks(
 
 
 @requires_db
+async def test_invalid_chunk_strategy_keeps_pending(
+    client: AsyncClient,
+    test_user: dict,
+    upload_settings,
+) -> None:
+    """非法分块策略返回 400 业务错误，文档保持待分块且不产生分块数据。"""
+    headers = test_user["headers"]
+    kb_id = await _create_kb(client, headers, "非法策略库")
+    response = await _upload(client, kb_id, headers, "note.txt", b"content")
+    document_id = response.json()["data"]["id"]
+
+    chunk_response = await _chunk(client, document_id, headers, "unknown")
+    assert chunk_response.status_code == 400
+    assert chunk_response.json()["code"] == 40001
+
+    list_response = await client.get(f"/api/knowledge-bases/{kb_id}/documents", headers=headers)
+    item = {item["id"]: item for item in list_response.json()["data"]}[document_id]
+    assert item["status"] == "pending"
+    assert item["chunk_count"] == 0
+    assert item["error_message"] is None
+
+
+@requires_db
+async def test_rechunk_with_another_strategy_replaces_chunks(
+    client: AsyncClient,
+    test_user: dict,
+    upload_settings,
+    fake_embeddings,
+) -> None:
+    """已完成文档换策略重新分块后，旧分块被清理并按新策略生成分块。"""
+    headers = test_user["headers"]
+    kb_id = await _create_kb(client, headers, "重新分块库")
+    content = ("# 标题\n\n" + "甲" * 400 + "\n\n" + "乙" * 400).encode("utf-8")
+    response = await _upload(client, kb_id, headers, "rechunk.md", content)
+    document_id = response.json()["data"]["id"]
+
+    first_response = await _chunk(client, document_id, headers, "paragraph")
+    assert first_response.status_code == 200
+    first_chunks = (
+        await client.get(f"/api/documents/{document_id}/chunks", headers=headers)
+    ).json()["data"]
+    assert first_chunks
+    first_ids = {chunk["id"] for chunk in first_chunks}
+
+    second_response = await _chunk(client, document_id, headers, "fixed")
+    assert second_response.status_code == 200
+    second_chunks = (
+        await client.get(f"/api/documents/{document_id}/chunks", headers=headers)
+    ).json()["data"]
+    assert second_chunks
+    assert [chunk["chunk_index"] for chunk in second_chunks] == list(
+        range(len(second_chunks))
+    )
+    assert {chunk["id"] for chunk in second_chunks}.isdisjoint(first_ids)
+    assert second_chunks[0]["content"] != first_chunks[0]["content"]
+
+    list_response = await client.get(f"/api/knowledge-bases/{kb_id}/documents", headers=headers)
+    item = {item["id"]: item for item in list_response.json()["data"]}[document_id]
+    assert item["status"] == "completed"
+    assert item["chunk_count"] == len(second_chunks)
+
+
+@requires_db
 async def test_delete_document_cascades_chunks_and_removes_file(
     client: AsyncClient,
     test_user: dict,
@@ -418,6 +519,8 @@ async def test_delete_document_cascades_chunks_and_removes_file(
 
     response = await _upload(client, kb_id, headers, "to_delete.txt", b"delete me please")
     document_id = response.json()["data"]["id"]
+    chunk_response = await _chunk(client, document_id, headers)
+    assert chunk_response.status_code == 200
 
     assert async_session_factory is not None
     async with async_session_factory() as session:
@@ -475,6 +578,10 @@ async def test_cannot_access_other_users_document(
     other_headers = {"Authorization": f"Bearer {other_token}"}
 
     try:
+        chunk_response = await _chunk(client, document_id, other_headers)
+        assert chunk_response.status_code == 404
+        assert chunk_response.json()["code"] == 40400
+
         chunks_response = await client.get(
             f"/api/documents/{document_id}/chunks",
             headers=other_headers,

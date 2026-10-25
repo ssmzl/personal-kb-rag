@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS knowledge_bases (
 
 CREATE INDEX IF NOT EXISTS idx_knowledge_bases_user_id ON knowledge_bases (user_id);
 
--- 文档（上传后异步解析、分块、向量化）
+-- 文档（上传后由用户手动触发解析、分块、向量化）
 CREATE TABLE IF NOT EXISTS documents (
     id            BIGSERIAL PRIMARY KEY,
     kb_id         BIGINT       NOT NULL REFERENCES knowledge_bases (id) ON DELETE CASCADE,
@@ -32,13 +32,30 @@ CREATE TABLE IF NOT EXISTS documents (
     file_path     VARCHAR(512) NOT NULL,
     file_type     VARCHAR(16)  NOT NULL,
     file_size     BIGINT       NOT NULL,
-    status        VARCHAR(16)  NOT NULL DEFAULT 'processing'
-                  CHECK (status IN ('processing', 'completed', 'failed')),
+    status        VARCHAR(16)  NOT NULL DEFAULT 'pending'
+                  CHECK (status IN ('pending', 'processing', 'completed', 'failed')),
     error_message TEXT,
     chunk_count   INTEGER      NOT NULL DEFAULT 0,
     create_time   TIMESTAMPTZ  NOT NULL DEFAULT now(),
     update_time   TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
+
+-- 历史库兼容：补充 pending（待分块）状态并调整默认值
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conrelid = 'documents'::regclass
+          AND conname = 'documents_status_check'
+          AND pg_get_constraintdef(oid) NOT LIKE '%pending%'
+    ) THEN
+        ALTER TABLE documents DROP CONSTRAINT documents_status_check;
+        ALTER TABLE documents ADD CONSTRAINT documents_status_check
+            CHECK (status IN ('pending', 'processing', 'completed', 'failed'));
+    END IF;
+END $$;
+
+ALTER TABLE documents ALTER COLUMN status SET DEFAULT 'pending';
 
 CREATE INDEX IF NOT EXISTS idx_documents_kb_id ON documents (kb_id);
 

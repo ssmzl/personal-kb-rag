@@ -1,8 +1,8 @@
-"""分块器单元测试：空文本、短文本、长文本窗口与重叠、段落合并、参数校验。"""
+"""分块器单元测试：空文本、短文本、长文本窗口与重叠、段落合并、各分块策略、参数校验。"""
 
 import pytest
 
-from app.services.text_chunker import chunk_text
+from app.services.text_chunker import ChunkStrategy, chunk_text
 
 
 def test_empty_text_returns_empty_list() -> None:
@@ -70,6 +70,70 @@ def test_zero_overlap_disabled() -> None:
     chunks = chunk_text(f"{first}\n\n{second}", chunk_size=500, overlap=0)
 
     assert chunks == [first, second]
+
+
+def test_fixed_strategy_slides_without_structure() -> None:
+    """固定窗口策略忽略段落边界，按窗口滑动并保持重叠。"""
+    text = "a" * 300 + "\n\n" + "b" * 300
+    chunks = chunk_text(
+        text, chunk_size=500, overlap=50, strategy=ChunkStrategy.FIXED
+    )
+
+    assert len(chunks) == 2
+    assert all(len(chunk) <= 500 for chunk in chunks)
+    assert chunks[0].startswith("a" * 300)
+    assert chunks[1][:50] == chunks[0][-50:]
+
+
+def test_sentence_strategy_keeps_sentence_boundaries() -> None:
+    """句子策略按句末标点聚合，不把句子从中间切断。"""
+    text = "第一句话。第二句话。第三句话。"
+    chunks = chunk_text(text, chunk_size=12, overlap=0, strategy="sentence")
+
+    assert chunks == ["第一句话。\n第二句话。", "第三句话。"]
+
+
+def test_sentence_strategy_splits_oversized_sentence() -> None:
+    """单句长度超过窗口时仍需按窗口切分，保证分块不超长。"""
+    text = "a" * 1200
+    chunks = chunk_text(text, chunk_size=500, overlap=50, strategy="sentence")
+
+    assert len(chunks) == 3
+    assert all(len(chunk) <= 500 for chunk in chunks)
+    assert chunks[1][:50] == chunks[0][-50:]
+
+
+def test_markdown_strategy_splits_by_headings() -> None:
+    """Markdown 策略按标题切分小节，标题保留在所属小节内。"""
+    text = "# 标题一\n内容一\n\n## 标题二\n内容二"
+    chunks = chunk_text(text, chunk_size=20, overlap=0, strategy="markdown")
+
+    assert chunks == ["# 标题一\n内容一", "## 标题二\n内容二"]
+
+
+def test_markdown_strategy_splits_long_section_within_limit() -> None:
+    """超长小节继续按段落切分，所有分块均不超过窗口大小。"""
+    body = "\n\n".join(["段落" * 100] * 3)
+    text = f"# 标题\n{body}"
+    chunks = chunk_text(text, chunk_size=300, overlap=20, strategy="markdown")
+
+    assert len(chunks) >= 3
+    assert all(len(chunk) <= 300 for chunk in chunks)
+    assert chunks[0].startswith("# 标题")
+
+
+def test_markdown_strategy_falls_back_without_headings() -> None:
+    """无 Markdown 标题时退化为段落优先策略，避免整篇只能作为一块。"""
+    text = "段落一\n\n段落二"
+    chunks = chunk_text(text, chunk_size=500, overlap=50, strategy="markdown")
+
+    assert chunks == ["段落一\n段落二"]
+
+
+def test_invalid_strategy_raises_value_error() -> None:
+    """未知分块策略直接报错，避免静默回退到默认策略。"""
+    with pytest.raises(ValueError):
+        chunk_text("任意文本", strategy="unknown")
 
 
 @pytest.mark.parametrize(

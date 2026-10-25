@@ -1,7 +1,7 @@
-"""文档业务逻辑：上传保存、异步解析分块向量化、列表、分块查询、删除（级联）。
+"""文档业务逻辑：上传保存、手动触发解析分块向量化、列表、分块查询、删除（级联）。
 
-处理管线（后台任务）：
-解析文本 → 段落优先分块 → 批量 Embedding → 同事务写入分块向量并回写文档状态。
+处理管线（用户手动触发后的后台任务）：
+解析文本 → 按所选策略分块 → 批量 Embedding → 同事务写入分块向量并回写文档状态。
 任何步骤失败都会把文档置为 failed 并记录原因；分块写入在事务内完成，
 失败即回滚，不留脏分块/向量数据。
 """
@@ -22,6 +22,7 @@ from app.exceptions import BizException
 from app.models.document import (
     DOCUMENT_STATUS_COMPLETED,
     DOCUMENT_STATUS_FAILED,
+    DOCUMENT_STATUS_PENDING,
     DOCUMENT_STATUS_PROCESSING,
     Document,
 )
@@ -30,7 +31,7 @@ from app.models.knowledge_base import KnowledgeBase
 from app.services import embedding_client
 from app.services.document_parser import DocumentParseError, parse_document_text
 from app.services.knowledge_base_service import get_user_knowledge_base
-from app.services.text_chunker import chunk_text
+from app.services.text_chunker import ChunkStrategy, chunk_text, resolve_chunk_strategy
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +109,7 @@ async def create_document_from_upload(
     kb_id: int,
     file: UploadFile,
 ) -> Document:
-    """校验知识库归属并保存文件，写入处理中的文档记录。"""
+    """校验知识库归属并保存文件，写入待分块的文档记录（不自动触发分块）。"""
     kb = await get_user_knowledge_base(session, user_id, kb_id)
     filename = Path(file.filename or "").name
     file_path, file_size, file_type = await save_uploaded_file(file)
@@ -119,7 +120,7 @@ async def create_document_from_upload(
         file_path=file_path,
         file_type=file_type,
         file_size=file_size,
-        status=DOCUMENT_STATUS_PROCESSING,
+        status=DOCUMENT_STATUS_PENDING,
     )
     session.add(document)
     try:
@@ -184,6 +185,40 @@ async def list_chunks(
     return list((await session.execute(stmt)).scalars().all())
 
 
+async def start_document_chunking(
+    session: AsyncSession,
+    user_id: int,
+    document_id: int,
+    chunk_strategy: str,
+) -> Document:
+    """校验策略与文档归属，将文档置为处理中，由路由调度后台分块任务。"""
+    try:
+        resolve_chunk_strategy(chunk_strategy)
+    except ValueError as exc:
+        logger.warning(
+            "不支持的分块策略：document_id=%s strategy=%s", document_id, chunk_strategy
+        )
+        raise BizException(str(exc), code=40001, http_status=400) from exc
+
+    document = await get_user_document(session, user_id, document_id)
+    if document.status == DOCUMENT_STATUS_PROCESSING:
+        raise BizException("文档正在分块中，请稍候", code=40001, http_status=400)
+
+    document.status = DOCUMENT_STATUS_PROCESSING
+    document.error_message = None
+    document.chunk_count = 0
+    try:
+        await session.commit()
+    except SQLAlchemyError as exc:
+        await session.rollback()
+        logger.exception("文档分块状态更新失败：document_id=%s", document_id)
+        raise BizException("启动分块失败，请稍后重试") from exc
+
+    await session.refresh(document)
+    logger.info("文档开始分块：document_id=%s strategy=%s", document_id, chunk_strategy)
+    return document
+
+
 async def delete_document(
     session: AsyncSession,
     user_id: int,
@@ -198,8 +233,11 @@ async def delete_document(
     logger.info("文档已删除：document_id=%s kb_id=%s", document_id, document.kb_id)
 
 
-async def process_document(document_id: int) -> None:
-    """后台任务：解析、分块、向量化并回写文档状态；失败时回写原因且不留脏分块。"""
+async def process_document(
+    document_id: int,
+    chunk_strategy: str = ChunkStrategy.PARAGRAPH.value,
+) -> None:
+    """后台任务：按指定策略解析、分块、向量化并回写文档状态；失败时回写原因且不留脏分块。"""
     if async_session_factory is None:
         logger.warning("数据库未初始化，跳过文档处理：document_id=%s", document_id)
         return
@@ -217,7 +255,7 @@ async def process_document(document_id: int) -> None:
     try:
         # 解析与分块为同步阻塞操作，放到线程执行避免阻塞事件循环
         text = await asyncio.to_thread(parse_document_text, file_path, file_type)
-        chunks = chunk_text(text)
+        chunks = await asyncio.to_thread(chunk_text, text, strategy=chunk_strategy)
         if not chunks:
             raise DocumentParseError("文档未解析出有效文本")
         vectors = await embedding_client.embed_texts(chunks)
@@ -295,7 +333,7 @@ async def _store_chunks(
 
 
 async def _mark_document_failed(document_id: int, message: str) -> None:
-    """回写文档失败状态与原因（分块数为 0）。"""
+    """回写失败状态与原因，并清理历史分块（重新分块失败时不留旧数据）。"""
     if async_session_factory is None:
         return
 
@@ -303,6 +341,9 @@ async def _mark_document_failed(document_id: int, message: str) -> None:
         document = await session.get(Document, document_id)
         if document is None:
             return
+        await session.execute(
+            delete(DocumentChunk).where(DocumentChunk.document_id == document_id)
+        )
         document.status = DOCUMENT_STATUS_FAILED
         document.error_message = message[:MAX_ERROR_MESSAGE_LENGTH]
         document.chunk_count = 0

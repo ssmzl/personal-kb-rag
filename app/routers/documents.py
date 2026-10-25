@@ -1,4 +1,4 @@
-"""文档路由：上传（异步向量化）、列表、分块查询、删除（级联删分块）。"""
+"""文档路由：上传、手动触发分块（异步向量化）、列表、分块查询、删除（级联删分块）。"""
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,7 +9,7 @@ from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
 from app.models.user import User
 from app.schemas.common import ApiResponse, ok
-from app.schemas.document import DocumentChunkItem, DocumentItem
+from app.schemas.document import DocumentChunkItem, DocumentChunkRequest, DocumentItem
 from app.services import document_service
 
 router = APIRouter(tags=["documents"])
@@ -63,17 +63,37 @@ async def list_documents(
 )
 async def upload_document(
     kb_id: int,
-    background_tasks: BackgroundTasks,
     file: UploadFile = File(..., description="PDF/DOCX/MD/TXT 文件，单文件不超过 20MB"),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
 ) -> ApiResponse[DocumentItem]:
-    """保存文件并写入处理中的文档记录，后台异步解析分块并向量化。"""
+    """保存文件并写入待分块的文档记录，不自动触发解析与向量化。"""
     document = await document_service.create_document_from_upload(
         session, current_user.id, kb_id, file
     )
-    background_tasks.add_task(document_service.process_document, document.id)
-    return ok(_to_item(document), message="上传成功，正在后台解析并向量化")
+    return ok(_to_item(document), message="上传成功，请选择策略开始分块")
+
+
+@router.post(
+    "/documents/{document_id}/chunk",
+    response_model=ApiResponse[DocumentItem],
+    summary="开始/重新分块",
+)
+async def chunk_document(
+    document_id: int,
+    payload: DocumentChunkRequest,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> ApiResponse[DocumentItem]:
+    """按指定策略异步解析、分块并向量化，支持对已完成文档重新分块。"""
+    document = await document_service.start_document_chunking(
+        session, current_user.id, document_id, payload.chunk_strategy
+    )
+    background_tasks.add_task(
+        document_service.process_document, document.id, payload.chunk_strategy
+    )
+    return ok(_to_item(document), message="已开始分块")
 
 
 @router.get(

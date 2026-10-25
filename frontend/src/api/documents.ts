@@ -1,7 +1,10 @@
 import http from '@/api/client'
 import type { ApiResponse } from '@/types/api'
 
-export type DocumentStatus = 'processing' | 'completed' | 'failed'
+export type DocumentStatus = 'pending' | 'processing' | 'completed' | 'failed'
+
+/** 分块策略，需与后端 ChunkStrategy 枚举值保持一致 */
+export type ChunkStrategy = 'paragraph' | 'fixed' | 'sentence' | 'markdown'
 
 export interface DocumentItem {
   id: number
@@ -31,7 +34,7 @@ export async function listDocuments(kbId: number): Promise<DocumentItem[]> {
   return data.data ?? []
 }
 
-/** 上传文档，onProgress 回调返回上传百分比（0-100） */
+/** 上传文档（仅保存文件），onProgress 回调返回上传百分比（0-100） */
 export async function uploadDocument(
   kbId: number,
   file: File,
@@ -52,6 +55,20 @@ export async function uploadDocument(
   )
   if (!data.data) {
     throw new Error('上传文档返回数据为空')
+  }
+  return data.data
+}
+
+/** 按指定策略开始/重新分块并向量化 */
+export async function chunkDocument(
+  documentId: number,
+  chunkStrategy: ChunkStrategy,
+): Promise<DocumentItem> {
+  const { data } = await http.post<ApiResponse<DocumentItem>>(`/documents/${documentId}/chunk`, {
+    chunk_strategy: chunkStrategy,
+  })
+  if (!data.data) {
+    throw new Error('启动分块返回数据为空')
   }
   return data.data
 }

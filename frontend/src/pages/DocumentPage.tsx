@@ -3,10 +3,12 @@ import { Link, useParams } from 'react-router-dom'
 
 import { ApiError } from '@/api/client'
 import {
+  chunkDocument,
   deleteDocument,
   listDocumentChunks,
   listDocuments,
   uploadDocument,
+  type ChunkStrategy,
   type DocumentChunkItem,
   type DocumentItem,
   type DocumentStatus,
@@ -20,16 +22,41 @@ const POLL_INTERVAL_MS = 2000
 const ACCEPT_TYPES = '.pdf,.docx,.md,.txt'
 
 const STATUS_TEXT: Record<DocumentStatus, string> = {
-  processing: '处理中',
+  pending: '待分块',
+  processing: '分块中',
   completed: '已完成',
   failed: '失败',
 }
 
 const STATUS_CLASS: Record<DocumentStatus, string> = {
+  pending: 'bg-surface-muted text-text-muted',
   processing: 'bg-primary-light text-primary',
   completed: 'bg-surface-muted text-text-muted',
   failed: 'bg-danger-light text-danger',
 }
+
+const CHUNK_STRATEGIES: { value: ChunkStrategy; label: string; hint: string }[] = [
+  {
+    value: 'paragraph',
+    label: '段落优先（默认）',
+    hint: '短段落合并，超长段落按窗口切分，适合普通文档',
+  },
+  {
+    value: 'fixed',
+    label: '固定窗口',
+    hint: '按固定长度滑动切分，适合无段落、无语义结构的文本',
+  },
+  {
+    value: 'sentence',
+    label: '句子聚合',
+    hint: '按句末标点聚合，尽量保证句子完整，适合说明文与问答',
+  },
+  {
+    value: 'markdown',
+    label: 'Markdown 标题',
+    hint: '按标题切分小节，适合笔记与结构化文档；无标题时退化为段落策略',
+  },
+]
 
 /** 字节数转可读大小 */
 function format_file_size(bytes: number): string {
@@ -56,10 +83,15 @@ export default function DocumentPage() {
   const [uploadPercent, setUploadPercent] = useState(0)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
+  const [processTarget, setProcessTarget] = useState<DocumentItem | null>(null)
+  const [processStrategy, setProcessStrategy] = useState<ChunkStrategy>('paragraph')
+  const [processing, setProcessing] = useState(false)
+  const [processHint, setProcessHint] = useState('')
+
   const [deleteTarget, setDeleteTarget] = useState<DocumentItem | null>(null)
   const [deleting, setDeleting] = useState(false)
 
-  const [chunkTarget, setChunkTarget] = useState<DocumentItem | null>(null)
+  const [chunkViewTarget, setChunkViewTarget] = useState<DocumentItem | null>(null)
   const [chunks, setChunks] = useState<DocumentChunkItem[]>([])
   const [chunksLoading, setChunksLoading] = useState(false)
   const [chunksHint, setChunksHint] = useState('')
@@ -152,7 +184,7 @@ export default function DocumentPage() {
   }
 
   async function openChunks(document: DocumentItem) {
-    setChunkTarget(document)
+    setChunkViewTarget(document)
     setChunks([])
     setChunksHint('')
     setChunksLoading(true)
@@ -165,6 +197,29 @@ export default function DocumentPage() {
     }
   }
 
+  function openProcessModal(document: DocumentItem) {
+    setProcessTarget(document)
+    setProcessStrategy('paragraph')
+    setProcessHint('')
+  }
+
+  async function handleProcess() {
+    if (!processTarget) {
+      return
+    }
+    setProcessing(true)
+    setProcessHint('')
+    try {
+      await chunkDocument(processTarget.id, processStrategy)
+      setProcessTarget(null)
+      await refresh()
+    } catch (error) {
+      setProcessHint(error instanceof ApiError ? error.message : '启动分块失败，请稍后重试')
+    } finally {
+      setProcessing(false)
+    }
+  }
+
   async function handleDelete() {
     if (!deleteTarget) {
       return
@@ -172,8 +227,8 @@ export default function DocumentPage() {
     setDeleting(true)
     try {
       await deleteDocument(deleteTarget.id)
-      if (chunkTarget?.id === deleteTarget.id) {
-        setChunkTarget(null)
+      if (chunkViewTarget?.id === deleteTarget.id) {
+        setChunkViewTarget(null)
       }
       setDeleteTarget(null)
       await refresh()
@@ -206,10 +261,10 @@ export default function DocumentPage() {
           <div>
             <h1 className="text-xl font-semibold text-text">{kbName || `知识库 #${kbId}`}</h1>
             <p className="mt-1 text-sm text-text-muted">
-              支持 PDF / DOCX / MD / TXT，单文件不超过 {MAX_UPLOAD_MB}MB，上传后自动解析分块并向量化
+              支持 PDF / DOCX / MD / TXT，单文件不超过 {MAX_UPLOAD_MB}MB；上传后选择策略手动开始分块并向量化
             </p>
           </div>
-          <div>
+          <div className="flex flex-wrap items-center gap-2">
             <input
               ref={fileInputRef}
               type="file"
@@ -266,15 +321,32 @@ export default function DocumentPage() {
                     <p className="mt-1 text-xs text-danger">失败原因：{document.error_message}</p>
                   )}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span
                     className={`rounded-full px-2.5 py-1 text-xs ${STATUS_CLASS[document.status]}`}
                   >
                     {STATUS_TEXT[document.status]}
                   </span>
+                  {document.status === 'processing' ? (
+                    <button
+                      type="button"
+                      disabled
+                      className="rounded-md border border-border px-3 py-1.5 text-sm text-text-muted disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      分块中…
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => openProcessModal(document)}
+                      className="rounded-md border border-primary px-3 py-1.5 text-sm text-primary transition-colors hover:bg-primary-light"
+                    >
+                      {document.status === 'completed' ? '重新分块' : '开始分块'}
+                    </button>
+                  )}
                   <button
                     type="button"
-                    disabled={document.status === 'processing'}
+                    disabled={document.status !== 'completed'}
                     onClick={() => void openChunks(document)}
                     className="rounded-md border border-border px-3 py-1.5 text-sm text-text-muted transition-colors hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-60"
                   >
@@ -295,9 +367,9 @@ export default function DocumentPage() {
       )}
 
       <Drawer
-        title={chunkTarget ? `分块查看 · ${chunkTarget.filename}` : '分块查看'}
-        open={chunkTarget !== null}
-        onClose={() => setChunkTarget(null)}
+        title={chunkViewTarget ? `分块查看 · ${chunkViewTarget.filename}` : '分块查看'}
+        open={chunkViewTarget !== null}
+        onClose={() => setChunkViewTarget(null)}
       >
         {chunksLoading ? (
           <p className="text-sm text-text-muted">加载中…</p>
@@ -320,6 +392,52 @@ export default function DocumentPage() {
           </ol>
         )}
       </Drawer>
+
+      <Modal
+        title={processTarget ? `分块设置 · ${processTarget.filename}` : '分块设置'}
+        open={processTarget !== null}
+        onClose={() => setProcessTarget(null)}
+      >
+        <p className="text-sm text-text-muted">
+          选择分块策略后开始解析、分块并向量化；已完成文档会按新策略重新生成分块。
+        </p>
+        <label className="mt-4 block text-sm text-text">
+          分块策略
+          <select
+            value={processStrategy}
+            disabled={processing}
+            onChange={(event) => setProcessStrategy(event.target.value as ChunkStrategy)}
+            className="mt-2 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {CHUNK_STRATEGIES.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <p className="mt-2 text-xs text-text-muted">
+          {CHUNK_STRATEGIES.find((item) => item.value === processStrategy)?.hint}
+        </p>
+        {processHint && <p className="mt-2 text-sm text-danger">{processHint}</p>}
+        <div className="mt-6 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => setProcessTarget(null)}
+            className="rounded-md border border-border px-4 py-2 text-sm text-text-muted transition-colors hover:bg-surface-muted"
+          >
+            取消
+          </button>
+          <button
+            type="button"
+            disabled={processing}
+            onClick={handleProcess}
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {processing ? '提交中…' : '开始分块'}
+          </button>
+        </div>
+      </Modal>
 
       <Modal
         title="删除文档"

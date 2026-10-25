@@ -15,7 +15,7 @@ class DocumentItem(BaseModel):
     filename: str = Field(description="原始文件名")
     file_type: str = Field(description="文件类型（pdf/docx/md/txt）")
     file_size: int = Field(description="文件大小（字节）")
-    status: str = Field(description="处理状态：processing/completed/failed")
+    status: str = Field(description="处理状态：pending/processing/completed/failed")
     error_message: str | None = Field(default=None, description="失败原因")
     chunk_count: int = Field(description="分块数")
     create_time: datetime = Field(description="创建时间")
@@ -25,6 +25,15 @@ class DocumentItem(BaseModel):
     def serialize_time(self, value: datetime) -> str:
         """时间统一输出 yyyy-MM-dd HH:mm:ss 格式字符串。"""
         return value.strftime(TIME_FORMAT)
+
+
+class DocumentChunkRequest(BaseModel):
+    """手动触发分块的请求参数。"""
+
+    chunk_strategy: str = Field(
+        default="paragraph",
+        description="分块策略：paragraph（段落优先）/ fixed（固定窗口）/ sentence（句子聚合）/ markdown（Markdown 标题）",
+    )
 
 
 class DocumentChunkItem(BaseModel):

@@ -14,14 +14,15 @@ if TYPE_CHECKING:
     from app.models.document_chunk import DocumentChunk
     from app.models.knowledge_base import KnowledgeBase
 
-# 文档处理状态
+# 文档处理状态：pending 待分块，需用户手动触发
+DOCUMENT_STATUS_PENDING = "pending"
 DOCUMENT_STATUS_PROCESSING = "processing"
 DOCUMENT_STATUS_COMPLETED = "completed"
 DOCUMENT_STATUS_FAILED = "failed"
 
 
 class Document(Base, TimestampMixin):
-    """上传文档，异步解析分块并向量化。"""
+    """上传文档，用户手动触发后再解析分块并向量化。"""
 
     __tablename__ = "documents"
 
@@ -38,8 +39,8 @@ class Document(Base, TimestampMixin):
     status: Mapped[str] = mapped_column(
         String(16),
         nullable=False,
-        default=DOCUMENT_STATUS_PROCESSING,
-        server_default=DOCUMENT_STATUS_PROCESSING,
+        default=DOCUMENT_STATUS_PENDING,
+        server_default=DOCUMENT_STATUS_PENDING,
     )
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     chunk_count: Mapped[int] = mapped_column(
