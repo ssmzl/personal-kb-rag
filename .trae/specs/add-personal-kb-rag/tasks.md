@@ -41,9 +41,9 @@
   - [x] SubTask 7.3: `README.md`：项目简介、架构图（mermaid）、技术栈、本地开发与 Docker 一键启动步骤、环境变量说明、功能截图位
   - [x] SubTask 7.4: 验证：`docker compose up -d` 后全流程走通（登录→建库→上传→提问）
 
-- [ ] Task 8: 收尾联调与规范核查
-  - [ ] SubTask 8.1: 逐项核查（统一返回结构、业务异常不外抛 500、无空 except、主题色不硬编码、api-key 无硬编码、SSE error 事件、增删改后刷新列表、下划线命名）
-  - [ ] SubTask 8.2: 全部 pytest 通过，前端 `npm run build` 通过
+- [x] Task 8: 收尾联调与规范核查
+  - [x] SubTask 8.1: 逐项核查（统一返回结构、业务异常不外抛 500、无空 except、主题色不硬编码、api-key 无硬编码、SSE error 事件、增删改后刷新列表、下划线命名）
+  - [x] SubTask 8.2: 全部 pytest 通过，前端 `npm run build` 通过
 
 # Task Dependencies
 - Task 2 depends on Task 1
