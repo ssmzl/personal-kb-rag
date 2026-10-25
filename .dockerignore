@@ -1,0 +1,30 @@
+# 构建上下文排除项：仅保留后端运行所需内容
+.git
+.github
+.idea
+.vscode
+.trae
+.screenshots
+
+# Python 本地环境与缓存
+.venv
+venv
+__pycache__
+*.py[cod]
+.pytest_cache
+.mypy_cache
+.ruff_cache
+
+# 环境变量与密钥（运行时注入，禁止打进镜像）
+.env
+.env.*
+
+# 前端与本地数据（前端有独立镜像）
+frontend
+uploads
+
+# 测试与文档
+tests
+README.md
+LICENSE
+docker-compose.yml

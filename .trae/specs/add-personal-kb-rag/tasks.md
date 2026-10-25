@@ -35,11 +35,11 @@
   - [x] SubTask 6.3: 前端对话页：会话侧栏 + 消息流（react-markdown 渲染）+ 输入框；POST 流式用 fetch ReadableStream 解析 SSE，增量更新走 React state 不可变更新；回答完成后展示可展开引用来源
   - [x] SubTask 6.4: 验证：检索拼接 pytest；端到端提问上传过的资料，流式输出正常且引用正确
 
-- [ ] Task 7: 一键部署与交付文档
-  - [ ] SubTask 7.1: 根目录 `Dockerfile`（后端，python:3.11-slim）、`frontend/Dockerfile`（node 构建 + nginx 托管 + /api 反代）
-  - [ ] SubTask 7.2: 完善根目录 `docker-compose.yml`（postgres、backend、frontend 三服务编排、健康检查、启动顺序、数据卷）
-  - [ ] SubTask 7.3: `README.md`：项目简介、架构图（mermaid）、技术栈、本地开发与 Docker 一键启动步骤、环境变量说明、功能截图位
-  - [ ] SubTask 7.4: 验证：`docker compose up -d` 后全流程走通（登录→建库→上传→提问）
+- [x] Task 7: 一键部署与交付文档
+  - [x] SubTask 7.1: 根目录 `Dockerfile`（后端，python:3.11-slim）、`frontend/Dockerfile`（node 构建 + nginx 托管 + /api 反代）
+  - [x] SubTask 7.2: 完善根目录 `docker-compose.yml`（postgres、backend、frontend 三服务编排、健康检查、启动顺序、数据卷）
+  - [x] SubTask 7.3: `README.md`：项目简介、架构图（mermaid）、技术栈、本地开发与 Docker 一键启动步骤、环境变量说明、功能截图位
+  - [x] SubTask 7.4: 验证：`docker compose up -d` 后全流程走通（登录→建库→上传→提问）
 
 - [ ] Task 8: 收尾联调与规范核查
   - [ ] SubTask 8.1: 逐项核查（统一返回结构、业务异常不外抛 500、无空 except、主题色不硬编码、api-key 无硬编码、SSE error 事件、增删改后刷新列表、下划线命名）
